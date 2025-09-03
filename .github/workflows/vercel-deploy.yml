@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Build and Test
 
 on:
   push:
@@ -9,8 +9,40 @@ on:
       - main
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Build
+        run: npm run build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { issue: { number: issue_number }, repo: { owner, repo } } = context;
+            github.rest.issues.createComment({
+              issue_number,
+              owner,
+              repo,
+              body: `✅ Build completed successfully! The application is ready for deployment.`
+            });
+        if: github.event_name == 'pull_request'
+
+  # Optional Vercel deployment job (only runs if secrets are available)
   deploy:
     runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VERCEL_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,27 +60,3 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./
           vercel-args: '--prod'
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      - name: Deploy to Vercel (Preview)
-        id: vercel-deployment
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./
-        if: github.event_name == 'pull_request'
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { issue: { number: issue_number }, repo: { owner, repo } } = context;
-            github.rest.issues.createComment({
-              issue_number,
-              owner,
-              repo,
-              body: `✅ Preview deployed to: ${process.env.VERCEL_DEPLOYMENT_URL}`
-            });
-        if: github.event_name == 'pull_request' && env.VERCEL_DEPLOYMENT_URL != ''
-        env:
-          VERCEL_DEPLOYMENT_URL: ${{ steps.vercel-deployment.outputs.preview-url }}
