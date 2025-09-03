@@ -21,12 +21,13 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci
-
-    - name: Build application
-      run: npm run build
-      env:
-        NODE_OPTIONS: --max-old-space-size=4096
+      run: npm ci --legacy-peer-deps
+      
+    # Skip build step as Vercel will handle the build
+    # - name: Build application
+    #   run: npm run build
+    #   env:
+    #     NODE_OPTIONS: --max-old-space-size=4096
 
     - name: Deploy to Vercel (Production)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
