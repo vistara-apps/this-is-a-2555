@@ -22,7 +22,7 @@
     "react-dom": "18.2.0",
     "react-router-dom": "6.20.0",
     "viem": "^2.7.6",
-    "wagmi": "^2.9.0",
+    "wagmi": "2.15.0",
     "x402-axios": "0.4.1"
   },
   "devDependencies": {
