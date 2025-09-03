@@ -36,7 +36,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,8 +46,18 @@ jobs:
           name: build-files
           path: dist/
 
+      - name: Check for Vercel secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ] && [ -n "${{ secrets.VERCEL_ORG_ID }}" ] && [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "secrets-available=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets-available=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Vercel deployment secrets not configured. Skipping deployment."
+          fi
+
       - name: Deploy to Vercel (Production)
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: steps.check-secrets.outputs.secrets-available == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -57,7 +66,7 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel (Preview)
-        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
+        if: steps.check-secrets.outputs.secrets-available == 'true' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
         id: vercel-preview
         uses: amondnet/vercel-action@v25
         with:
