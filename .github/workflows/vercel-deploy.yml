@@ -31,6 +31,7 @@ jobs:
           vercel-args: '--prod'
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       - name: Deploy to Vercel (Preview)
+        id: vercel-deployment
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -52,4 +53,3 @@ jobs:
         if: github.event_name == 'pull_request' && env.VERCEL_DEPLOYMENT_URL != ''
         env:
           VERCEL_DEPLOYMENT_URL: ${{ steps.vercel-deployment.outputs.preview-url }}
-
