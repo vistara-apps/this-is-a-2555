@@ -42,11 +42,15 @@ NicheNet is a web application for students to discover and join niche communitie
 
 ### Prerequisites
 
-- Node.js (v16+)
-- npm or yarn
+- Node.js (v22+) - **Required for optimal build performance**
+- npm (v10+)
 - Supabase account
 - OpenAI API key
 - Stripe account (for payments)
+
+### Build Requirements
+
+This project uses modern dependencies that require Node.js 22+ and the `--legacy-peer-deps` flag for npm installations due to peer dependency conflicts in the Web3 ecosystem.
 
 ### Installation
 
@@ -58,10 +62,10 @@ NicheNet is a web application for students to discover and join niche communitie
 
 2. Install dependencies:
    ```bash
-   npm install
-   # or
-   yarn install
+   npm install --legacy-peer-deps
    ```
+   
+   **Note:** The `--legacy-peer-deps` flag is required due to peer dependency conflicts in Web3 packages.
 
 3. Create a `.env` file based on `.env.example`:
    ```bash
@@ -79,11 +83,43 @@ NicheNet is a web application for students to discover and join niche communitie
 5. Start the development server:
    ```bash
    npm run dev
-   # or
-   yarn dev
    ```
 
 6. Open your browser and navigate to `http://localhost:5173`
+
+## Build and Deployment
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+The build process:
+- Uses Vite for fast bundling
+- Optimizes assets and code splitting
+- Generates static files in the `dist/` directory
+- Supports modern ES modules and legacy browsers
+
+### Deployment Options
+
+#### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables in Vercel dashboard
+3. Automatic deployments on push to main branch
+
+#### Manual Deployment
+1. Run `npm run build`
+2. Upload the `dist/` folder to your hosting provider
+3. Configure your server to serve `index.html` for all routes (SPA routing)
+
+### Environment Variables
+
+Required for production:
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `VITE_OPENAI_API_KEY` - OpenAI API key for AI features
+- `VITE_STRIPE_PUBLIC_KEY` - Stripe publishable key for payments
 
 ## Database Schema
 
@@ -191,4 +227,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - OpenAI for AI capabilities
 - Supabase for backend services
 - React and TailwindCSS communities for frontend tools
-
