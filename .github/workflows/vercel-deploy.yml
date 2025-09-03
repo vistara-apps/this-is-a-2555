@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Build and Deploy
 
 on:
   push:
@@ -7,65 +7,90 @@ on:
     branches: [ main, master ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
 
-    - name: Build application
-      run: npm run build
-      env:
-        NODE_OPTIONS: --max-old-space-size=4096
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
-    - name: Deploy to Vercel (Production)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-args: '--prod'
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/
 
-    - name: Deploy to Vercel (Preview)
-      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-args: '--no-wait'
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Comment PR with deployment URL
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { data: deployments } = await github.rest.repos.listDeployments({
-            owner: context.repo.owner,
-            repo: context.repo.repo
-          });
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-files
+          path: dist/
 
-          const latestDeployment = deployments[0];
-          if (latestDeployment) {
-            const deploymentUrl = `https://${latestDeployment.environment}.vercel.app`;
+      - name: Deploy to Vercel (Production)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Deploy to Vercel (Preview)
+        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
+        id: vercel-preview
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--no-wait'
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Comment PR with deployment URL
+        if: github.event_name == 'pull_request' && steps.vercel-preview.outputs.preview-url
+        uses: actions/github-script@v7
+        with:
+          script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `🚀 **Preview Deployment Ready!**
-              \n\n📱 **URL:** ${deploymentUrl}
+              \n\n📱 **URL:** ${{ steps.vercel-preview.outputs.preview-url }}
               \n\nThis preview will be automatically updated when you push new commits to this PR.`
             });
-          }
+
+  build-status:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Build Success
+        if: needs.build.result == 'success'
+        run: echo "✅ Build completed successfully!"
+        
+      - name: Build Failed
+        if: needs.build.result == 'failure'
+        run: |
+          echo "❌ Build failed!"
+          exit 1
