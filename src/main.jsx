@@ -1,9 +1,10 @@
 import '@rainbow-me/rainbowkit/styles.css';
 import {
-  getDefaultConfig,
   RainbowKitProvider,
+  getDefaultWallets,
+  connectorsForWallets,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
+import { configureChains, createConfig, WagmiConfig } from 'wagmi';
 import {
   mainnet,
   polygon,
@@ -11,6 +12,7 @@ import {
   arbitrum,
   base,
 } from 'wagmi/chains';
+import { publicProvider } from 'wagmi/providers/public';
 import {
   QueryClientProvider,
   QueryClient,
@@ -21,22 +23,37 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-const config = getDefaultConfig({
-  appName: "NicheNet",
-  projectId: "9f4bd472c01ba49282b42e5e1874c2af",
-  chains: [mainnet, polygon, optimism, arbitrum, base],
+const { chains, publicClient } = configureChains(
+  [mainnet, polygon, optimism, arbitrum, base],
+  [publicProvider()]
+);
+
+const { wallets } = getDefaultWallets({
+  appName: 'NicheNet',
+  projectId: '9f4bd472c01ba49282b42e5e1874c2af',
+  chains,
+});
+
+const connectors = connectorsForWallets([
+  ...wallets,
+]);
+
+const wagmiConfig = createConfig({
+  autoConnect: true,
+  connectors,
+  publicClient,
 });
 
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <WagmiProvider config={config}>
+    <WagmiConfig config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <RainbowKitProvider chains={chains}>
           <App />
         </RainbowKitProvider>
       </QueryClientProvider>
-    </WagmiProvider>
+    </WagmiConfig>
   </React.StrictMode>,
 )
